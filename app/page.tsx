@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type Entry = { id: number; name: string; kind: "loot" | "cost"; value: number; qty: number };
 type LogStatus = { connected: boolean; path: string | null; updating: boolean };
+type LiveLog = { feGained: number; pickupCount: number; zone: string; initialized: boolean; recent: Array<{id:number; configId:number; name:string; quantity:number; time:string}> };
 
 const seed: Entry[] = [
   { id: 1, name: "Flame Elementium", kind: "loot", value: 18, qty: 42 },
@@ -32,6 +33,7 @@ export default function Home() {
   const [restored, setRestored] = useState(false);
   const [logStatus, setLogStatus] = useState<LogStatus>({ connected: false, path: null, updating: false });
   const [locating, setLocating] = useState(false);
+  const [liveLog, setLiveLog] = useState<LiveLog>({ feGained: 0, pickupCount: 0, zone: "Waiting for zone…", initialized: false, recent: [] });
   const [form, setForm] = useState({ name: "", value: "", qty: "1", kind: "loot" as "loot" | "cost" });
 
   useEffect(() => {
@@ -47,6 +49,27 @@ export default function Home() {
     } catch { /* Keep the sample session if local data cannot be read. */ }
     setRestored(true);
   }, []);
+
+  useEffect(() => {
+    if (logStatus.connected && entries.length === 4 && entries.every((entry, index) => entry.id === index + 1)) {
+      setEntries([]); setMaps(0); setSeconds(0);
+    }
+  }, [logStatus.connected]);
+
+  useEffect(() => {
+    const bridge = (window as any).torchtrack;
+    if (!bridge) return;
+    bridge.getLive().then(setLiveLog);
+    return bridge.onLive(setLiveLog);
+  }, []);
+
+  useEffect(() => {
+    if (!logStatus.connected) return;
+    setEntries((old) => {
+      const withoutLiveFe = old.filter((entry) => entry.id !== -100);
+      return liveLog.feGained > 0 ? [{ id: -100, name: "Live Flame Elementium", kind: "loot", value: 1, qty: liveLog.feGained }, ...withoutLiveFe] : withoutLiveFe;
+    });
+  }, [liveLog.feGained, logStatus.connected]);
 
   useEffect(() => {
     if (!restored) return;
@@ -126,6 +149,7 @@ export default function Home() {
           </div>
           <div className="heroActions"><button className="primary" onClick={() => setMaps((m) => m + 1)}>+ Map complete</button><button onClick={() => setShowEntry(true)}>+ Add loot or cost</button><button onClick={() => { setSaved(true); setRunning(false); }}>□ Save session</button></div>
         </section>
+        {logStatus.connected && <section className="liveLogCard"><div><p className="eyebrow">REAL-TIME GAME LOG</p><strong>{liveLog.initialized ? liveLog.zone : "Open your bag and press Sort once"}</strong><span>{liveLog.initialized ? `${liveLog.pickupCount} items detected · ${liveLog.feGained} FE picked up` : "This creates a clean inventory baseline before live tracking begins."}</span></div><div className="livePicks">{liveLog.recent.length ? liveLog.recent.slice(0, 4).map((item) => <span key={item.id}><b>+{item.quantity}</b> {item.name}<small>{item.time}</small></span>) : <span>Waiting for new pickups…</span>}</div></section>}
 
         <section className="grid">
           <article className="card breakdown">
