@@ -21,6 +21,7 @@ const history = [
 function money(value: number) { return Math.round(value).toLocaleString(); }
 
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<"dashboard" | "sessions" | "strategies">("dashboard");
   const [entries, setEntries] = useState<Entry[]>(seed);
   const [running, setRunning] = useState(true);
   const [seconds, setSeconds] = useState(1800);
@@ -95,10 +96,10 @@ export default function Home() {
       <aside className="sidebar">
         <div className="brand"><span className="brandmark">T</span><span>TORCH<span className="muted">TRACK</span></span></div>
         <nav aria-label="Main navigation">
-          <button className="navitem active"><span>◫</span> Dashboard</button>
-          <button className="navitem"><span>◉</span> Sessions</button>
-          <button className="navitem"><span>◇</span> Strategies</button>
-          <button className="navitem"><span>⌁</span> Price library <b>Soon</b></button>
+          <button className={`navitem ${activeTab === "dashboard" ? "active" : ""}`} onClick={() => setActiveTab("dashboard")}><span>◫</span> Dashboard</button>
+          <button className={`navitem ${activeTab === "sessions" ? "active" : ""}`} onClick={() => setActiveTab("sessions")}><span>◉</span> Sessions</button>
+          <button className={`navitem ${activeTab === "strategies" ? "active" : ""}`} onClick={() => setActiveTab("strategies")}><span>◇</span> Strategies</button>
+          <button className="navitem" onClick={() => setShowSetup(true)}><span>⌁</span> Price library <b>Soon</b></button>
         </nav>
         <div className="sidebottom">
           <button className="navitem" onClick={() => setShowSetup(true)}><span>⚙</span> Data setup</button>
@@ -108,11 +109,11 @@ export default function Home() {
 
       <section className="content">
         <header>
-          <div><p className="eyebrow">FARMING OVERVIEW</p><h1>Good hunting, Ember.</h1><p>Track what your farming time is really worth.</p></div>
+          <div><p className="eyebrow">{activeTab === "dashboard" ? "FARMING OVERVIEW" : activeTab === "sessions" ? "SESSION ARCHIVE" : "STRATEGY LAB"}</p><h1>{activeTab === "dashboard" ? "Good hunting, Ember." : activeTab === "sessions" ? "Your farming sessions" : "Compare your strategies"}</h1><p>{activeTab === "dashboard" ? "Track what your farming time is really worth." : activeTab === "sessions" ? "Review saved runs and their results." : "See which farming approach earns the most FE per hour."}</p></div>
           <div className="headerActions"><span className={`status ${logStatus.connected ? "connected" : ""}`}><i /> {logStatus.connected ? (logStatus.updating ? "Game log live" : "Log connected") : "Manual mode"}</span><button className="iconBtn" aria-label="Notifications">♢</button></div>
         </header>
 
-        <section className="hero">
+        {activeTab === "dashboard" && <><section className="hero">
           <div className="heroTop">
             <div><span className="live"><i /> LIVE SESSION</span><h2>Bounty Hunting · Profound</h2><p>Manella · Season 8</p></div>
             <div className="timer"><span>{time}</span><button onClick={() => setRunning(!running)} aria-label={running ? "Pause timer" : "Resume timer"}>{running ? "Ⅱ" : "▶"}</button></div>
@@ -138,11 +139,15 @@ export default function Home() {
           </article>
 
           <article className="card history">
-            <div className="cardHead"><div><p className="eyebrow">RECENT RUNS</p><h3>Strategy history</h3></div><button className="link">View all</button></div>
+            <div className="cardHead"><div><p className="eyebrow">RECENT RUNS</p><h3>Strategy history</h3></div><button className="link" onClick={() => setActiveTab("sessions")}>View all</button></div>
             {history.map((run, i) => <div className="run" key={run.name}><span className="rank">0{i + 1}</span><span><b>{run.name}</b><small>{run.date} · {run.maps} maps</small></span><span className="runval"><b>{money(run.profit)} FE</b><small>{money(run.rate)} / hr</small></span></div>)}
             <div className="insight"><span>✦</span><p><b>Your best pace is Bounty Hunting.</b><br/>It’s earning 22% more FE/hour than your recent average.</p></div>
           </article>
-        </section>
+        </section></>}
+
+        {activeTab === "sessions" && <section className="card tabPanel"><div className="cardHead"><div><p className="eyebrow">ALL SAVED RUNS</p><h3>Session history</h3></div><button className="primary" onClick={() => setActiveTab("dashboard")}>Start tracking</button></div>{history.map((run, i) => <div className="run" key={run.name}><span className="rank">0{i + 1}</span><span><b>{run.name}</b><small>{run.date} · {run.maps} maps</small></span><span className="runval"><b>{money(run.profit)} FE</b><small>{money(run.rate)} / hr</small></span></div>)}</section>}
+
+        {activeTab === "strategies" && <section className="card tabPanel"><div className="cardHead"><div><p className="eyebrow">PERFORMANCE RANKING</p><h3>Strategy comparison</h3></div></div>{[...history].sort((a,b) => b.rate-a.rate).map((run, i) => <div className="run" key={run.name}><span className="rank">#{i + 1}</span><span><b>{run.name}</b><small>{run.maps} maps recorded</small></span><span className="runval"><b>{money(run.rate)} FE/hr</b><small>{money(run.profit)} FE profit</small></span></div>)}</section>}
 
         <footer><span><i /> Data stays on this device</span><span>Manual tracking enabled · Log parsing ready for supported formats</span></footer>
       </section>

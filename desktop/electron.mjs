@@ -68,7 +68,7 @@ function createWindow() {
     backgroundColor: "#0d0f0e",
     title: "TorchTrack Companion",
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(here, "preload.mjs") },
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(here, "preload.cjs") },
   });
 
   win.loadFile(path.join(here, "web", "index.html"));
