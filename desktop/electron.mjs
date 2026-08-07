@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const portableRoot = app.isPackaged ? path.dirname(process.execPath) : path.resolve(here, "..");
+const portableRoot = process.env.PORTABLE_EXECUTABLE_DIR
+  || (app.isPackaged ? path.dirname(process.execPath) : path.resolve(here, ".."));
 app.setPath("userData", path.join(portableRoot, "TorchTrack Data"));
 
 if (!app.requestSingleInstanceLock()) app.quit();
