@@ -1,7 +1,10 @@
 {
   "name": "torchtrack-companion",
   "version": "0.1.0",
+  "description": "Portable, external farming session tracker for Torchlight: Infinite.",
+  "author": "TorchTrack",
   "private": true,
+  "main": "desktop-dist/electron.mjs",
   "engines": {
     "node": ">=22.13.0"
   },
@@ -9,6 +12,9 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "vinext start",
+    "desktop:web": "vite build --config vite.desktop.config.ts",
+    "desktop:prepare": "npm run desktop:web && node -e \"require('fs').copyFileSync('desktop/electron.mjs','desktop-dist/electron.mjs')\"",
+    "desktop:portable": "npm run desktop:prepare && electron-builder --win portable --x64",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
@@ -26,9 +32,11 @@
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-react": "^6.0.5",
     "@vitejs/plugin-rsc": "0.5.26",
     "drizzle-kit": "0.31.10",
+    "electron": "^43.3.0",
+    "electron-builder": "^26.15.3",
     "eslint": "9.39.4",
     "eslint-plugin-jsx-a11y": "6.10.2",
     "eslint-plugin-react": "7.37.5",
@@ -42,5 +50,14 @@
     "vite": "8.0.13",
     "wrangler": "4.92.0"
   },
-  "type": "module"
+  "type": "module",
+  "build": {
+    "appId": "com.torchtrack.companion",
+    "productName": "TorchTrack Companion",
+    "artifactName": "TorchTrack-Portable-${version}.${ext}",
+    "directories": { "output": "release" },
+    "files": ["desktop-dist/**/*", "package.json"],
+    "asar": true,
+    "win": { "target": [{ "target": "portable", "arch": ["x64"] }] }
+  }
 }

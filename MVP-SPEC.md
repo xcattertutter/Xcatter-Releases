@@ -18,6 +18,8 @@ It never controls the game. It does not press keys, read game memory, inject cod
 
 The dashboard begins with realistic sample data so the product is easy to understand immediately. Data resets when the page is refreshed in this prototype.
 
+The portable Windows edition saves its current session automatically in a `TorchTrack Data` folder beside the executable. It does not need an installer or internet connection.
+
 ## How the numbers work
 
 - **Revenue** = sum of `(drop price in FE × quantity)`

@@ -27,7 +27,27 @@ export default function Home() {
   const [showEntry, setShowEntry] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [restored, setRestored] = useState(false);
   const [form, setForm] = useState({ name: "", value: "", qty: "1", kind: "loot" as "loot" | "cost" });
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("torchtrack-session-v1");
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (Array.isArray(data.entries)) setEntries(data.entries);
+        if (Number.isFinite(data.seconds)) setSeconds(data.seconds);
+        if (Number.isFinite(data.maps)) setMaps(data.maps);
+        if (typeof data.running === "boolean") setRunning(data.running);
+      }
+    } catch { /* Keep the sample session if local data cannot be read. */ }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restored) return;
+    window.localStorage.setItem("torchtrack-session-v1", JSON.stringify({ entries, seconds, maps, running }));
+  }, [entries, seconds, maps, running, restored]);
 
   useEffect(() => {
     if (!running) return;
