@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Entry = { id: number; name: string; kind: "loot" | "cost"; value: number; qty: number };
+type LogStatus = { connected: boolean; path: string | null; updating: boolean };
 
 const seed: Entry[] = [
   { id: 1, name: "Flame Elementium", kind: "loot", value: 18, qty: 42 },
@@ -28,6 +29,8 @@ export default function Home() {
   const [showSetup, setShowSetup] = useState(false);
   const [saved, setSaved] = useState(false);
   const [restored, setRestored] = useState(false);
+  const [logStatus, setLogStatus] = useState<LogStatus>({ connected: false, path: null, updating: false });
+  const [locating, setLocating] = useState(false);
   const [form, setForm] = useState({ name: "", value: "", qty: "1", kind: "loot" as "loot" | "cost" });
 
   useEffect(() => {
@@ -48,6 +51,21 @@ export default function Home() {
     if (!restored) return;
     window.localStorage.setItem("torchtrack-session-v1", JSON.stringify({ entries, seconds, maps, running }));
   }, [entries, seconds, maps, running, restored]);
+
+  useEffect(() => {
+    const bridge = (window as any).torchtrack;
+    if (!bridge) return;
+    bridge.getLogStatus().then(setLogStatus);
+    return bridge.onLogStatus(setLogStatus);
+  }, []);
+
+  async function locateLog(manual = false) {
+    const bridge = (window as any).torchtrack;
+    if (!bridge) return;
+    setLocating(true);
+    setLogStatus(await (manual ? bridge.chooseLog() : bridge.autoLocateLog()));
+    setLocating(false);
+  }
 
   useEffect(() => {
     if (!running) return;
@@ -91,7 +109,7 @@ export default function Home() {
       <section className="content">
         <header>
           <div><p className="eyebrow">FARMING OVERVIEW</p><h1>Good hunting, Ember.</h1><p>Track what your farming time is really worth.</p></div>
-          <div className="headerActions"><span className="status"><i /> Session live</span><button className="iconBtn" aria-label="Notifications">♢</button></div>
+          <div className="headerActions"><span className={`status ${logStatus.connected ? "connected" : ""}`}><i /> {logStatus.connected ? (logStatus.updating ? "Game log live" : "Log connected") : "Manual mode"}</span><button className="iconBtn" aria-label="Notifications">♢</button></div>
         </header>
 
         <section className="hero">
@@ -130,7 +148,7 @@ export default function Home() {
       </section>
 
       {showEntry && <div className="modal" role="dialog" aria-modal="true" aria-labelledby="entry-title"><form onSubmit={addEntry} className="modalCard"><button type="button" className="close" onClick={() => setShowEntry(false)}>×</button><p className="eyebrow">MANUAL ENTRY</p><h2 id="entry-title">Add loot or investment</h2><p>This is the safest way to record a drop or map cost.</p><div className="segmented"><button type="button" className={form.kind === "loot" ? "selected" : ""} onClick={() => setForm({...form, kind: "loot"})}>Loot</button><button type="button" className={form.kind === "cost" ? "selected" : ""} onClick={() => setForm({...form, kind: "cost"})}>Cost</button></div><label>Item or cost name<input autoFocus value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} placeholder="e.g. Flame Elementium" /></label><div className="formrow"><label>Value each (FE)<input type="number" min="0.1" step="0.1" value={form.value} onChange={(e) => setForm({...form, value: e.target.value})} /></label><label>Quantity<input type="number" min="1" value={form.qty} onChange={(e) => setForm({...form, qty: e.target.value})} /></label></div><button className="primary submit">Add to session</button></form></div>}
-      {showSetup && <div className="modal" role="dialog" aria-modal="true"><div className="modalCard setup"><button className="close" onClick={() => setShowSetup(false)}>×</button><p className="eyebrow">SAFE DATA SETUP</p><h2>Choose how to track</h2><div className="option activeOption"><span>1</span><div><b>Manual entry</b><p>Ready now. You enter loot and costs; the app does the math.</p></div><em>Active</em></div><div className="option"><span>2</span><div><b>Game log import</b><p>Future adapter. Reads supported text logs only—never game memory.</p></div><em>Planned</em></div><div className="option"><span>3</span><div><b>Screenshot OCR</b><p>Future optional import for reading loot from your screenshots.</p></div><em>Planned</em></div><div className="guardrail">This companion never presses keys, moves your character, reads memory, or bypasses anti-cheat.</div></div></div>}
+      {showSetup && <div className="modal" role="dialog" aria-modal="true"><div className="modalCard setup"><button className="close" onClick={() => setShowSetup(false)}>×</button><p className="eyebrow">SAFE DATA SETUP</p><h2>Choose how to track</h2><div className="option activeOption"><span>1</span><div><b>Manual entry</b><p>Always available. You enter loot and costs; the app does the math.</p></div><em>Ready</em></div><div className={`option ${logStatus.connected ? "activeOption" : ""}`}><span>2</span><div><b>Real-time game log</b><p>{logStatus.connected ? `Connected${logStatus.updating ? " and updating" : ""}: ${logStatus.path}` : "Searches Steam libraries, alternate drives, and the standalone client."}</p><div className="logActions"><button className="primary" onClick={() => locateLog(false)} disabled={locating}>{locating ? "Searching…" : "Auto-locate"}</button><button onClick={() => locateLog(true)}>Choose file</button></div></div><em>{logStatus.connected ? "Connected" : "Not found"}</em></div><div className="option"><span>3</span><div><b>Screenshot OCR</b><p>Future optional import for reading loot from your screenshots.</p></div><em>Planned</em></div><div className="guardrail">The log connection only reads `UE_game.log`. It never presses keys, moves your character, reads memory, or bypasses anti-cheat.</div></div></div>}
       {saved && <div className="toast">✓ Session saved to strategy history <button onClick={() => setSaved(false)}>×</button></div>}
     </main>
   );

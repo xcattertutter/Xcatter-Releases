@@ -13,7 +13,7 @@
     "build": "vinext build",
     "start": "vinext start",
     "desktop:web": "vite build --config vite.desktop.config.ts",
-    "desktop:prepare": "npm run desktop:web && node -e \"require('fs').copyFileSync('desktop/electron.mjs','desktop-dist/electron.mjs')\"",
+    "desktop:prepare": "npm run desktop:web && node -e \"const f=require('fs');f.copyFileSync('desktop/electron.mjs','desktop-dist/electron.mjs');f.copyFileSync('desktop/preload.mjs','desktop-dist/preload.mjs')\"",
     "desktop:portable": "npm run desktop:prepare && electron-builder --win portable --x64",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",

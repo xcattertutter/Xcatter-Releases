@@ -4,6 +4,8 @@
 2. Double-click the executable. No installation or administrator access is needed.
 3. A `TorchTrack Data` folder is created beside it. Keep this folder with the executable; it contains the locally saved session.
 
+When it opens, TorchTrack automatically searches Steam libraries, alternate drives, and standard standalone-client folders for `UE_game.log`. Open **Data setup** to see the connection. If the game uses an unusual folder, select **Choose file** once; TorchTrack remembers it afterward.
+
 The app works offline. Windows SmartScreen may show an “unknown publisher” warning because this first build does not have a purchased code-signing certificate. Use **More info → Run anyway** only if the file came directly from this project.
 
 Do not place the portable app inside `Program Files`, where Windows may prevent it from writing its local data folder.
