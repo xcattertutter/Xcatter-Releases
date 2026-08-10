@@ -14,7 +14,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 .spacer{flex:1}
 .ic{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font-size:13px;line-height:1}
 .ic:hover{color:var(--text);border-color:var(--line);background:var(--panel2)}
-.ic.warn{color:var(--red);border-color:var(--red)}
 .ic:disabled{opacity:.3;pointer-events:none}
 .ic.on{color:var(--teal);border-color:var(--teal)}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
@@ -53,6 +52,18 @@ section.feed h3{margin:0 0 6px}
 .row .q.pos{color:var(--teal)}.row .q.neg{color:var(--red)}
 .empty{font-size:12px;color:var(--muted);padding:6px 2px}
 footer{flex:none;font-size:10px;color:var(--muted);text-align:center;padding:6px}
+.modal{position:fixed;inset:0;background:rgba(3,6,12,.72);z-index:30;display:grid;place-items:center;padding:20px;backdrop-filter:blur(4px)}
+.modal[hidden]{display:none}
+.modalCard{width:min(360px,100%);background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:20px 20px 18px;box-shadow:0 24px 60px rgba(0,0,0,.6);position:relative}
+.modalCard h2{margin:7px 0 10px;font-size:16px;color:var(--text)}
+.modalCard p{margin:0 0 16px;font-size:11.5px;line-height:1.55;color:var(--muted)}
+.eyebrow{color:var(--blue);letter-spacing:.12em;font-size:9px;font-weight:700}
+.close{position:absolute;right:10px;top:10px;border:0!important;background:transparent!important;font-size:18px!important;color:var(--muted)}
+.confirmActions{display:flex;gap:8px}
+.confirmActions button{flex:1;padding:9px 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-size:11.5px;font-weight:700}
+.confirmActions button:hover{border-color:var(--blue)}
+.confirmActions .danger{background:rgba(70,18,28,.7);border-color:var(--red);color:#ffb3c6}
+.confirmActions .danger:hover{border-color:var(--red);box-shadow:0 0 12px rgba(251,113,133,.25)}
 </style>
 </head>
 <body>
@@ -84,11 +95,20 @@ footer{flex:none;font-size:10px;color:var(--muted);text-align:center;padding:6px
     <footer>Click-through pauses the other buttons · toggle back with the cursor button</footer>
   </main>
 </div>
+<div id="resetModal" class="modal" hidden>
+  <div class="modalCard">
+    <button class="close" id="bResetClose" title="Cancel">×</button>
+    <span class="eyebrow">START A NEW SESSION</span>
+    <h2>Reset this session?</h2>
+    <p>This clears the session timer, session profit, map log, and current map loot. Your completed map history is kept.</p>
+    <div class="buttonRow confirmActions"><button id="bResetCancel">Cancel</button><button id="bResetConfirm" class="danger">↺ Reset session</button></div>
+  </div>
+</div>
 <script>
 const $ = id => document.getElementById(id);
 const bridge = window.torchtrack;
 const NET = 0.875, TAX = 0.125;
-let live = null, seconds = 0, lastSessionStart = null, clickThrough = false, dragging = false, confirmReset = false, afterTax = false, now = Date.now();
+let live = null, seconds = 0, lastSessionStart = null, clickThrough = false, dragging = false, afterTax = false, now = Date.now();
 const money = v => Math.round(Number(v) || 0).toLocaleString();
 const clock = v => `${String(Math.floor(v / 3600)).padStart(2, "0")}:${String(Math.floor(v / 60) % 60).padStart(2, "0")}:${String(Math.floor(v) % 60).padStart(2, "0")}`;
 const shortClock = v => `${String(Math.floor(v / 60) % 60).padStart(2, "0")}:${String(Math.floor(v) % 60).padStart(2, "0")}`;
@@ -148,16 +168,16 @@ function updateClickButton() {
   $("bReset").disabled = clickThrough;
   $("bBack").disabled = clickThrough;
   $("bTax").disabled = clickThrough;
+  if (clickThrough) closeReset();
 }
 $("bPause").onclick = () => { if (bridge && live) bridge.setPaused(!live.paused); };
-$("bReset").onclick = () => {
-  if (!confirmReset) {
-    confirmReset = true; $("bReset").classList.add("warn");
-    setTimeout(() => { confirmReset = false; $("bReset").classList.remove("warn"); }, 3000);
-  } else {
-    bridge?.resetSession(); seconds = 0; confirmReset = false; $("bReset").classList.remove("warn");
-  }
-};
+function openReset() { $("bReset").blur(); $("resetModal").hidden = false; }
+function closeReset() { $("resetModal").hidden = true; }
+$("bReset").onclick = () => openReset();
+$("bResetClose").onclick = closeReset;
+$("bResetCancel").onclick = closeReset;
+$("bResetConfirm").onclick = () => { bridge?.resetSession(); seconds = 0; closeReset(); };
+window.addEventListener("keydown", e => { if (e.key === "Escape") closeReset(); });
 $("bPin").onclick = () => { clickThrough = !clickThrough; updateClickButton(); syncInteractive(); };
 $("bBack").onclick = () => bridge?.restoreMain();
 $("bTax").onclick = () => { afterTax = !afterTax; render(); };

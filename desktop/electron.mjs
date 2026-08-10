@@ -542,6 +542,7 @@ function resetSession() {
   live.mapStartedAt = null;
   live.mapTier = null;
   live.levelId = null;
+  live.levelType = null;
   mapActive = false;
   live.mapActive = false;
   mapPausedMs = 0;
@@ -888,11 +889,16 @@ function parseLine(line) {
     return;
   }
   const context = line.match(/ItemChange@\s*ProtoName=(\w+)\s+(start|end)/);
-  if (context) { if (["PickItems", "PickItem"].includes(context[1])) pickupContext = context[2] === "start"; return; }
+  if (context) { if (["PickItems", "PickItem", "Push2"].includes(context[1])) pickupContext = context[2] === "start"; return; }
   const update = line.match(/ItemChange@\s+Update\s+Id=(\d+)_\S+\s+BagNum=(\d+)\s+in\s+PageId=(\d+)\s+SlotId=(\d+)/);
   if (update) {
     updateSlotFromLog(Number(update[3]), Number(update[4]), Number(update[1]), Number(update[2]), pickupContext && live.initialized);
     if (!live.initialized) live.initialized = true;
+    return;
+  }
+  const added = line.match(/ItemChange@\s+Add\s+Id=(\d+)_\S+\s+BagNum=(\d+)\s+in\s+PageId=(\d+)\s+SlotId=(\d+)/);
+  if (added) {
+    updateSlotFromLog(Number(added[3]), Number(added[4]), Number(added[1]), Number(added[2]), pickupContext && live.initialized);
     return;
   }
   const item = line.match(/BagMgr@:(?:Modfy\s+BagItem|InitBagData)\s+PageId\s*=\s*(\d+)\s+SlotId\s*=\s*(\d+)\s+ConfigBaseId\s*=\s*(\d+)\s+Num\s*=\s*(\d+)/);
@@ -916,10 +922,13 @@ function parseLine(line) {
     const tier = timemarkLabel(levelId, levelType, raw);
     pendingLevelId = null; pendingLevelType = null; pendingLevelUid = null;
     live.zone = details.name;
-    if (details.hub) { completeCurrentMap(); live.mapTier = null; live.levelId = null; captureHubCostBaseline(); }
+    if (details.hub) { completeCurrentMap(); live.mapTier = null; live.levelId = null; live.levelType = null; captureHubCostBaseline(); }
+    else if (levelType === 22 && mapActive && live.levelType === 21) {
+      live.zone = details.name;
+    }
     else if (details.name !== live.currentMap || !mapActive) {
       completeCurrentMap();
-      live.currentMap = details.known ? details.name : (tier ? `${tier} Map` : "Netherrealm Map"); live.mapTier = tier; live.levelId = levelId; live.mapStartedAt = new Date().toISOString();
+      live.currentMap = details.known ? details.name : (tier ? `${tier} Map` : "Netherrealm Map"); live.mapTier = tier; live.levelId = levelId; live.levelType = levelType; live.mapStartedAt = new Date().toISOString();
       beginMapCosts(); mapLoot.clear(); live.mapItems = []; live.excludedItems = []; live.mapValue = 0; live.mapFeDropped = 0; live.mapCost = 0; live.mapCostItems = []; live.mapDurationSeconds = 0; lootSequence = 0; mapPausedMs = 0; pauseStartedAt = live.paused ? Date.now() : null; mapActive = true; live.mapActive = true; live.mapPausedMs = 0; live.pauseStartedAt = pauseStartedAt; refreshValuation();
     }
     broadcastLive();
@@ -981,8 +990,17 @@ const buffer = Buffer.allocUnsafe(amount); fs.readSync(fd, buffer, 0, amount, of
       const levelType = lastLevel ? Number(lastLevel[2]) : null;
       const details = zoneDetails(raw, levelId);
       const tier = timemarkLabel(levelId, levelType, raw);
-      live.zone = details.name;
-      if (!details.hub) { live.currentMap = details.known ? details.name : (tier ? `${tier} Map` : "Netherrealm Map"); live.mapTier = tier; live.levelId = levelId; }
+      let name = details.name;
+      let resolvedLevelId = levelId;
+      let resolvedLevelType = levelType;
+      if (levelType === 22 && zoneCatalog.parentOf?.[String(levelId)]) {
+        const parent = zoneCatalog.parentOf[String(levelId)];
+        name = zoneCatalog.levelIds?.[String(parent)] || details.name;
+        resolvedLevelId = Number(parent);
+        resolvedLevelType = 21;
+      }
+      live.zone = name;
+      if (!details.hub) { live.currentMap = details.known ? name : (tier ? `${tier} Map` : "Netherrealm Map"); live.mapTier = tier; live.levelId = resolvedLevelId; live.levelType = resolvedLevelType; }
       else captureHubCostBaseline();
     }
     return live.initialized;
