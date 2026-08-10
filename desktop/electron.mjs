@@ -455,9 +455,18 @@ function isHiddenUnknown(id) {
   if (/技能|装备|organ|armor|weapon|gear|relic|idol|tome|skill/i.test(type)) return true;
   return (id >= 5000 && id < 8000) || (id >= 100000 && id < 150000) || (id >= 300000 && id < 10000000);
 }
+const EXCLUDED_TYPES = new Set([
+  "传奇装备","核心器官","核心器官-头部","核心器官-胸甲","核心器官-项链","核心器官-手套","核心器官-腰带","核心器官-鞋子","核心器官-戒指","普通器官","特殊器官-其它","特殊器官-前缀","神骸","装备蓝图",
+  "完美皮肤-防御","完美心脏-增益","完美喉舌-祝福","完美眼球-减益","完美胚胎-召唤","完美肝脏-转伤","完美羽翼-持续",
+  "主动技能","辅助技能","崇高辅助技能","华贵辅助技能","被动技能","触媒技能",
+  "英雄追忆",
+  "异度棱镜","特殊棱镜","逆像的残影",
+  "巨力之神","狩猎之神","知识之神","征战之神","欺诈之神","机械之神",
+  "冥王的神格",
+]);
 function isExcludedType(id) {
   const type = itemCatalog.get(id)?.type || "";
-  return /技能|装备|器官|神骸|完美|蓝图|skill|equip|armor|weapon|gear|organ|relic|tome|idol/i.test(type);
+  return EXCLUDED_TYPES.has(type) || /skill|equip|armor|weapon|gear|organ|relic|tome|idol/i.test(type);
 }
 function tracked(id) { return !isHiddenUnknown(id) && !isExcludedType(id); }
 function isMapCostItem(id) {
