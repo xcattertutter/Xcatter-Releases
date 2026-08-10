@@ -4,6 +4,7 @@ import path from "node:path";
 
 export default defineConfig({
   root: path.resolve(__dirname, "desktop"),
+  publicDir: path.resolve(__dirname, "public"),
   base: "./",
   plugins: [react()],
   build: {

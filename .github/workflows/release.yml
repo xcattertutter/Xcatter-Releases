@@ -1,0 +1,32 @@
+name: Publish Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:portable
+      - name: Create checksum
+        shell: pwsh
+        run: |
+          $asset = Get-ChildItem release/Xcatter-Portable-*.exe | Select-Object -First 1
+          $hash = (Get-FileHash -Algorithm SHA256 $asset.FullName).Hash.ToLower()
+          "$hash  $($asset.Name)" | Set-Content -NoNewline "$($asset.FullName).sha256"
+      - name: Publish GitHub release
+        shell: pwsh
+        run: gh release create $env:GITHUB_REF_NAME release/Xcatter-Portable-*.exe release/Xcatter-Portable-*.exe.sha256 --generate-notes --title "Xcatter $env:GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ github.token }}

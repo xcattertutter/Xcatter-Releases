@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TorchTrack — Farming Companion",
+  title: "Xcatter — Farming Companion",
   description: "A safe, external Torchlight: Infinite farming session tracker.",
   icons: {
     icon: "/favicon.svg",

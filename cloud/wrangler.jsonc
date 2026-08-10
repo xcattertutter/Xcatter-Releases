@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "torchtrack-prices",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-07",
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "torchtrack-prices",
+    "database_id": "30962c08-0c2c-4102-86e0-b9bbef5457f9"
+  }]
+}
