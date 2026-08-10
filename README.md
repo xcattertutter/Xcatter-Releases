@@ -1,100 +1,38 @@
-# vinext-starter
+# Xcatter
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Portable, external farming-session tracker for Torchlight: Infinite. Reads the game's real-time log to track loot drops, zone costs, and session profit without touching the game.
 
-## Prerequisites
+## Features
 
-- Node.js `>=22.13.0`
+- Live pickup tracking from the game log (stackables, currencies, compasses)
+- Per-map profit, FE drops, and cost accounting (netherrealm resonance, compasses, beacons)
+- Item price data from the community Cloudflare price service and TITrack Economy
+- Always-on-top mini overlay for in-game viewing
+- Automatic updates: installs replace themselves on restart
+- Cloudflare Worker + D1 community price sync (anonymous item/price samples only)
 
-## Quick Start
+## Releases
+
+Portable Windows builds are published to the [Releases](https://github.com/xcattertutter/Xcatter-Releases/releases) page. Each release ships the `.exe` plus a SHA-256 sidecar that the in-app updater validates before installing.
+
+Push a `vX.Y.Z` tag to trigger the [release workflow](.github/workflows/release.yml), which builds `Xcatter-Portable-<version>.exe` and creates the GitHub release automatically.
+
+## Local build
 
 ```bash
 npm install
-npm run dev
-npm run build
+npm run desktop:portable
 ```
 
-This starter does not use `wrangler.jsonc`.
+Output: `release/Xcatter-Portable-<version>.exe`.
 
-## Included Shape
+## Development
 
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+- `npm run dev` — web (vinext) development
+- `desktop/electron.mjs` — Electron main process (log parsing, prices, updates)
+- `desktop/overlay.html` + `app/` — UI
+- `cloud/` — Cloudflare Worker + D1 community price service
 
-## Workspace Auth Headers
+## Privacy
 
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
-```
-
-## Optional Dispatch-Owned ChatGPT Sign-In
-
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
-
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
-
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
-
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
-
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
-
-## Useful Commands
-
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+Only item ID, item name, FE price, observation time, season, and a hashed random contributor ID are uploaded. No account, character, or gameplay-log data leaves your PC.
