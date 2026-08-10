@@ -34,7 +34,7 @@ let pendingLevelType = null;
 let pendingLevelUid = null;
 const slots = new Map();
 const sessionStartedAt = new Date().toISOString();
-const live = { feGained: 0, pickupCount: 0, estimatedValue: 0, sessionStartedAt, sessionProfit: 0, sessionMaps: [], zone: "Waiting for zone…", currentMap: "Waiting for a map…", mapTier: null, levelId: null, mapStartedAt: null, mapDurationSeconds: 0, mapActive: false, mapValue: 0, mapFeDropped: 0, mapItems: [], mapCost: 0, mapCostItems: [], mapHistory: [], paused: false, initialized: false, recent: [], valuable: [], items: [], priceCount: 0, mapPausedMs: 0, pauseStartedAt: null };
+const live = { feGained: 0, pickupCount: 0, estimatedValue: 0, sessionStartedAt, sessionProfit: 0, sessionMaps: [], zone: "Waiting for zone…", currentMap: "Waiting for a map…", mapTier: null, levelId: null, mapStartedAt: null, mapDurationSeconds: 0, mapActive: false, mapValue: 0, mapFeDropped: 0, mapItems: [], mapCost: 0, mapCostItems: [], mapHistory: [], paused: false, initialized: false, recent: [], valuable: [], excludedItems: [], items: [], priceCount: 0, mapPausedMs: 0, pauseStartedAt: null };
 const pickupTotals = new Map();
 const mapLoot = new Map();
 const mapCosts = new Map();
@@ -455,6 +455,11 @@ function isHiddenUnknown(id) {
   if (/技能|装备|organ|armor|weapon|gear|relic|idol|tome|skill/i.test(type)) return true;
   return (id >= 5000 && id < 8000) || (id >= 100000 && id < 150000) || (id >= 300000 && id < 10000000);
 }
+function isExcludedType(id) {
+  const type = itemCatalog.get(id)?.type || "";
+  return /技能|装备|器官|神骸|完美|蓝图|skill|equip|armor|weapon|gear|organ|relic|tome|idol/i.test(type);
+}
+function tracked(id) { return !isHiddenUnknown(id) && !isExcludedType(id); }
 function isMapCostItem(id) {
   const item = itemCatalog.get(id); const text = `${itemName(id)} ${item?.type || ""}`;
   return /compass|netherrealm resonance|beacon|probe|astrolabe/i.test(text);
@@ -519,6 +524,7 @@ function resetSession() {
   mapCosts.clear();
   hubCostBaseline.clear();
   live.mapItems = [];
+  live.excludedItems = [];
   live.mapValue = 0;
   live.mapFeDropped = 0;
   live.mapCost = 0;
@@ -570,17 +576,18 @@ function refreshValuation() {
     if (pageId === 100) continue;
     inventoryTotals.set(item.configId, (inventoryTotals.get(item.configId) || 0) + item.quantity);
   }
-  live.items = [...inventoryTotals.entries()].map(([configId, quantity]) => ({ configId, name: itemName(configId), icon: itemIcon(configId), quantity, unitPrice: unitPrice(configId), totalValue: quantity * unitPrice(configId), priceSource: configId === 100300 ? "currency" : prices[configId]?.source || null, pricedAt: prices[configId]?.updatedAt || null })).filter((item) => !isHiddenUnknown(item.configId)).sort((a, b) => b.totalValue - a.totalValue);
+  live.items = [...inventoryTotals.entries()].map(([configId, quantity]) => ({ configId, name: itemName(configId), icon: itemIcon(configId), quantity, unitPrice: unitPrice(configId), totalValue: quantity * unitPrice(configId), priceSource: configId === 100300 ? "currency" : prices[configId]?.source || null, pricedAt: prices[configId]?.updatedAt || null })).filter((item) => tracked(item.configId)).sort((a, b) => b.totalValue - a.totalValue);
   live.estimatedValue = live.items.reduce((sum, item) => sum + item.totalValue, 0);
   live.priceCount = Object.keys(prices).length;
-  live.recent = (live.recent || []).filter((item) => !isHiddenUnknown(item.configId));
+  live.recent = (live.recent || []).filter((item) => tracked(item.configId));
   for (const item of live.recent) { item.unitPrice = unitPrice(item.configId); item.totalValue = item.quantity * unitPrice(item.configId); }
-  live.mapItems = [...mapLoot.values()].map((item) => ({ ...item, name: itemName(item.configId), icon: itemIcon(item.configId), unitPrice: unitPrice(item.configId), totalValue: item.quantity * unitPrice(item.configId), pricedAt: prices[item.configId]?.updatedAt || null })).filter((item) => !isHiddenUnknown(item.configId)).sort((a, b) => b.totalValue - a.totalValue || b.quantity - a.quantity);
+  live.mapItems = [...mapLoot.values()].map((item) => ({ ...item, name: itemName(item.configId), icon: itemIcon(item.configId), unitPrice: unitPrice(item.configId), totalValue: item.quantity * unitPrice(item.configId), pricedAt: prices[item.configId]?.updatedAt || null })).filter((item) => tracked(item.configId)).sort((a, b) => b.totalValue - a.totalValue || b.quantity - a.quantity);
   live.mapValue = live.mapItems.reduce((sum, item) => sum + item.totalValue, 0);
   live.mapFeDropped = live.mapItems.filter((item) => item.configId === 100300).reduce((sum, item) => sum + item.quantity, 0);
   live.mapCostItems = [...mapCosts.values()].map((item) => ({ ...item, name: itemName(item.configId), icon: itemIcon(item.configId), unitPrice: unitPrice(item.configId), totalValue: item.quantity * unitPrice(item.configId), pricedAt: prices[item.configId]?.updatedAt || null })).sort((a, b) => b.totalValue - a.totalValue);
   live.mapCost = live.mapCostItems.reduce((sum, item) => sum + item.totalValue, 0);
-  live.valuable = [...pickupTotals.entries()].map(([configId, quantity]) => ({ configId, name: itemName(configId), icon: itemIcon(configId), quantity, unitPrice: unitPrice(configId), totalValue: quantity * unitPrice(configId) })).filter((item) => !isHiddenUnknown(item.configId) && item.totalValue >= 1).sort((a, b) => b.totalValue - a.totalValue);
+  live.valuable = [...pickupTotals.entries()].map(([configId, quantity]) => ({ configId, name: itemName(configId), icon: itemIcon(configId), quantity, unitPrice: unitPrice(configId), totalValue: quantity * unitPrice(configId) })).filter((item) => tracked(item.configId) && item.totalValue >= 1).sort((a, b) => b.totalValue - a.totalValue);
+  live.excludedItems = [...mapLoot.values()].map((item) => ({ ...item, name: itemName(item.configId), icon: itemIcon(item.configId), unitPrice: unitPrice(item.configId), totalValue: item.quantity * unitPrice(item.configId) })).filter((item) => isExcludedType(item.configId)).sort((a, b) => b.totalValue - a.totalValue || b.quantity - a.quantity);
   const completedProfit = live.sessionMaps.reduce((sum, map) => sum + Number(map.profit ?? map.totalValue ?? 0), 0);
   live.sessionProfit = completedProfit + (mapActive ? live.mapValue - live.mapCost : 0);
 }
@@ -904,7 +911,7 @@ function parseLine(line) {
     else if (details.name !== live.currentMap || !mapActive) {
       completeCurrentMap();
       live.currentMap = details.known ? details.name : (tier ? `${tier} Map` : "Netherrealm Map"); live.mapTier = tier; live.levelId = levelId; live.mapStartedAt = new Date().toISOString();
-      beginMapCosts(); mapLoot.clear(); live.mapItems = []; live.mapValue = 0; live.mapFeDropped = 0; live.mapCost = 0; live.mapCostItems = []; live.mapDurationSeconds = 0; lootSequence = 0; mapPausedMs = 0; pauseStartedAt = live.paused ? Date.now() : null; mapActive = true; live.mapActive = true; live.mapPausedMs = 0; live.pauseStartedAt = pauseStartedAt; refreshValuation();
+      beginMapCosts(); mapLoot.clear(); live.mapItems = []; live.excludedItems = []; live.mapValue = 0; live.mapFeDropped = 0; live.mapCost = 0; live.mapCostItems = []; live.mapDurationSeconds = 0; lootSequence = 0; mapPausedMs = 0; pauseStartedAt = live.paused ? Date.now() : null; mapActive = true; live.mapActive = true; live.mapPausedMs = 0; live.pauseStartedAt = pauseStartedAt; refreshValuation();
     }
     broadcastLive();
   }
