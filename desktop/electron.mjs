@@ -880,6 +880,11 @@ function updateSlotFromLog(pageId, slotId, configId, quantity, countPickup) {
   const baseline = sameItem ? old.quantity : 0;
   const gained = quantity - baseline;
   slots.set(key, { configId, quantity });
+  if (old && !sameItem && isMapCostItem(old.configId)) {
+    const remaining = currentCostTotals().get(old.configId) || 0;
+    if (remaining > 0) hubCostBaseline.set(old.configId, remaining);
+    else hubCostBaseline.delete(old.configId);
+  }
   if (countPickup && gained > 0) addLivePickup(configId, gained, true);
   return gained;
 }
