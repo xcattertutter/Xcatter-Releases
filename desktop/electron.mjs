@@ -464,7 +464,11 @@ const EXCLUDED_TYPES = new Set([
   "巨力之神","狩猎之神","知识之神","征战之神","欺诈之神","机械之神",
   "冥王的神格",
 ]);
+function isGearLikeId(id) {
+  return (id >= 1000 && id < 5000) || (id >= 7000 && id < 9000) || (id >= 71000 && id < 72000) || (id >= 110000 && id < 115000) || (id >= 380000 && id < 390000);
+}
 function isExcludedType(id) {
+  if (!itemCatalog.has(id) && isGearLikeId(id)) return true;
   const type = itemCatalog.get(id)?.type || "";
   return EXCLUDED_TYPES.has(type) || /skill|equip|armor|weapon|gear|organ|relic|tome|idol/i.test(type);
 }
