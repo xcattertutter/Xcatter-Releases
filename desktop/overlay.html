@@ -64,10 +64,50 @@ footer{flex:none;font-size:10px;color:var(--muted);text-align:center;padding:6px
 .confirmActions button:hover{border-color:var(--blue)}
 .confirmActions .danger{background:rgba(70,18,28,.7);border-color:var(--red);color:#ffb3c6}
 .confirmActions .danger:hover{border-color:var(--red);box-shadow:0 0 12px rgba(251,113,133,.25)}
+/* ---- overlay / ghost mode ---- */
+.frame.ghost{background:transparent;border-color:rgba(120,140,170,.30);box-shadow:none}
+.frame.ghost #strip{background:transparent;border-bottom-color:rgba(120,140,170,.20)}
+.frame.ghost .ic{color:rgba(232,240,251,.75)}
+.frame.ghost #strip b,.frame.ghost .mapName b,.frame.ghost .mapName small,.frame.ghost .mapName span,.frame.ghost .mapState strong,
+.frame.ghost .ovRow strong,.frame.ghost .ovRow span,.frame.ghost .metaRow span,
+.frame.ghost .tabsRow,.frame.ghost .tab,.frame.ghost .tabDiv,.frame.ghost .chev,
+.frame.ghost footer,.frame.ghost .row .nm b,.frame.ghost .row .nm small,.frame.ghost .row .q,
+.frame.ghost .taxPill{color:#fff}
+.frame.ghost .tab.on{color:var(--teal)}
+.frame.ghost .taxPill{border-color:rgba(255,255,255,.45)}
+.frame.ghost .taxPill:hover{border-color:var(--blue)}
+.frame.ghost #strip b,.frame.ghost .mapName b,.frame.ghost .mapName small,.frame.ghost .mapName span,.frame.ghost .mapState strong,
+.frame.ghost .ovRow strong,.frame.ghost .ovRow span,.frame.ghost .metaRow span,
+.frame.ghost .row .nm b,.frame.ghost .row .nm small,.frame.ghost .row .q,
+.frame.ghost .tabsRow,.frame.ghost .tab,.frame.ghost .tabDiv,.frame.ghost .chev,
+.frame.ghost footer,.frame.ghost .taxPill{
+  text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 7px rgba(0,0,0,.6);
+}
+.frame.ghost .row{background:rgba(15,23,38,.35);border-color:rgba(120,140,170,.15)}
+.frame.ghost .row .ico{background:rgba(10,14,20,.18)}
+.frame.ghost .rows{gap:6px}
+.frame.ghost .ddPanel{background:transparent;border:none;padding:0;border-radius:0}
+.frame:not(.ghost) .g-only{display:none}
+.frame.ghost .n-only{display:none}
+.ovRow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:2px 0}
+.ovRow span{font-size:11px;letter-spacing:.4px;color:var(--muted);font-weight:600}
+.ovRow strong{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+.ovRow strong.pos{color:var(--teal)}.ovRow strong.neg{color:var(--red)}
+.tabsRow{display:flex;align-items:center;gap:8px;cursor:pointer;padding:2px 2px}
+.tabGroup{display:flex;align-items:center;gap:8px;flex:1}
+.tab{font:inherit;font-size:12px;font-weight:700;color:var(--muted);background:transparent;border:none;cursor:pointer;padding:2px 0;letter-spacing:.4px}
+.tab:hover{color:var(--text)}
+.tab.on{color:var(--teal)}
+.tabDiv{color:rgba(120,140,170,.5);font-size:12px}
+.chev{transition:transform .15s;font-size:11px}
+.chev.open{transform:rotate(180deg)}
+.dd{display:none;flex-direction:column;gap:6px}
+.dd.open{display:flex}
+.ddPanel{display:flex;flex-direction:column;gap:6px}
 </style>
 </head>
 <body>
-<div class="frame">
+<div class="frame" id="frame">
   <header id="strip">
     <span id="dot" class="dot off"></span>
     <b>XCATTER</b>
@@ -75,6 +115,7 @@ footer{flex:none;font-size:10px;color:var(--muted);text-align:center;padding:6px
     <button id="bPause" class="ic" title="Pause session"></button>
     <button id="bReset" class="ic" title="Reset session">↺</button>
     <button id="bPin" class="ic" title="Click-through off · enable to let clicks pass to the game"></button>
+    <button id="bOverlay" class="ic" title="Overlay on · transparent over the game">◐</button>
     <button id="bBack" class="ic" title="Back to main window">↩</button>
   </header>
   <main>
@@ -82,16 +123,31 @@ footer{flex:none;font-size:10px;color:var(--muted);text-align:center;padding:6px
       <div class="mapName"><span>Current Map</span><b id="mapName">Waiting for a map…</b><small id="mapTier">Ready</small></div>
       <div class="mapState"><span id="stateDot" class="dot idle"></span><strong id="mapTime">00:00</strong></div>
     </div>
-    <div class="grid3">
+    <div class="grid3 n-only">
       <div class="metric"><span>Map Profit</span><strong id="mapProfit" class="muted">0</strong></div>
       <div class="metric"><span>Session Profit</span><strong id="profit" class="pos">0</strong></div>
       <div class="metric"><span>FE / Hour</span><strong id="rate">0</strong></div>
     </div>
+    <div class="ovRow g-only"><span>Current map pickup/cost:</span><strong id="gPickupCost" class="pos">0 / 0</strong></div>
+    <div class="ovRow g-only"><span>Session fe/min:</span><strong id="gRate" class="pos">0</strong></div>
+    <div class="ovRow g-only"><span>Total Profit:</span><strong id="gProfit" class="pos">0</strong></div>
     <div class="metaRow"><span id="sessionTime">Session 00:00:00</span><span id="mapsDone">0 maps</span><span id="mapTimeTotal">Map time 00:00:00</span><button id="bTax" class="taxPill">Gross</button></div>
-    <section class="feed">
+    <section class="feed n-only">
       <h3>Picked up loot · this map</h3>
       <div id="drops" class="rows"><div class="empty">No loot picked up this map</div></div>
     </section>
+    <div class="tabsRow g-only" id="tabsRow">
+      <div class="tabGroup">
+        <button type="button" class="tab on" id="tabLoots">Map Loots</button>
+        <span class="tabDiv">|</span>
+        <button type="button" class="tab" id="tabCost">Map Cost</button>
+      </div>
+      <span class="chev" id="chev">▾</span>
+    </div>
+    <div class="dd g-only" id="dd">
+      <div class="ddPanel" id="panelLoots"><div id="gDrops" class="rows"></div></div>
+      <div class="ddPanel" id="panelCost"><div id="gCosts" class="rows"></div></div>
+    </div>
     <footer>Click-through pauses the other buttons · toggle back with the cursor button</footer>
   </main>
 </div>
@@ -109,6 +165,8 @@ const $ = id => document.getElementById(id);
 const bridge = window.torchtrack;
 const NET = 0.875, TAX = 0.125;
 let live = null, seconds = 0, lastSessionStart = null, clickThrough = false, dragging = false, afterTax = false, now = Date.now();
+let ghost = false, ghostTab = "loots";
+const GHOST_KEY = "torchtrack.overlay";
 const money = v => Math.round(Number(v) || 0).toLocaleString();
 const clock = v => `${String(Math.floor(v / 3600)).padStart(2, "0")}:${String(Math.floor(v / 60) % 60).padStart(2, "0")}:${String(Math.floor(v) % 60).padStart(2, "0")}`;
 const shortClock = v => `${String(Math.floor(v / 60) % 60).padStart(2, "0")}:${String(Math.floor(v) % 60).padStart(2, "0")}`;
@@ -117,6 +175,7 @@ const CLICK_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" 
 const PAUSE_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
 const PLAY_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>';
 const afterTaxMapProfit = (totalValue, feDropped, cost) => (feDropped || 0) + Math.max(0, (totalValue || 0) - (feDropped || 0)) * NET - (cost || 0);
+const netItemValue = d => (Number(d.configId) === 100300 ? d.totalValue : d.totalValue * NET);
 function img(src, name) {
   if (!src) return "<i>✦</i>";
   return `<img src="${esc(src)}" alt="${esc(name)}" onerror="this.outerHTML='<i>✦</i>'">`;
@@ -128,7 +187,7 @@ function render() {
   const sessionAfterTax = completedAfterTax + (live.mapActive ? afterTaxMapProfit(live.mapValue, live.mapFeDropped, live.mapCost) : 0);
   const profit = afterTax ? sessionAfterTax : live.sessionProfit;
   const rate = seconds > 0 ? profit / (seconds / 3600) : 0;
-  const mapProfit = (live.mapValue || 0) - (live.mapCost || 0);
+  const mapProfit = afterTax ? afterTaxMapProfit(live.mapValue, live.mapFeDropped, live.mapCost) : (live.mapValue || 0) - (live.mapCost || 0);
   const profitEl = $("profit");
   profitEl.textContent = money(profit);
   profitEl.className = "pos";
@@ -150,15 +209,76 @@ function render() {
   $("bPause").title = live.paused ? "Resume session" : "Pause session";
   $("bTax").textContent = afterTax ? "Net" : "Gross";
   renderDrops();
+  renderGhost(profit);
 }
 function renderDrops() {
   const el = $("drops");
   const drops = (live?.mapItems || []).slice().sort((a, b) => b.totalValue - a.totalValue).slice(0, 5);
   if (!drops.length) { el.innerHTML = '<div class="empty">No loot picked up this map</div>'; return; }
-  el.innerHTML = drops.map(d => `<div class="row"><span class="ico">${img(d.icon, d.name)}</span><span class="nm"><b>${esc(d.name)}</b><small>${money(d.totalValue)} FE</small></span><span class="q">×${d.quantity}</span></div>`).join("");
+  el.innerHTML = drops.map(d => `<div class="row"><span class="ico">${img(d.icon, d.name)}</span><span class="nm"><b>${esc(d.name)}</b><small>${money(afterTax ? netItemValue(d) : d.totalValue)} FE</small></span><span class="q">×${d.quantity}</span></div>`).join("");
+}
+function ghostRow(d, tax) {
+  return `<div class="row"><span class="ico">${img(d.icon, d.name)}</span><span class="nm"><b>${esc(d.name)}</b><small>${money(tax ? netItemValue(d) : d.totalValue)} FE</small></span><span class="q">×${d.quantity}</span></div>`;
+}
+function renderGhost(profit) {
+  const mapProfit = afterTax ? afterTaxMapProfit(live.mapValue, live.mapFeDropped, live.mapCost) : (live.mapValue || 0) - (live.mapCost || 0);
+  const pickup = $("gPickupCost");
+  const pickupValue = afterTax ? afterTaxMapProfit(live.mapValue, live.mapFeDropped, 0) : (live.mapValue || 0);
+  pickup.textContent = `${money(pickupValue)} / ${money(live.mapCost || 0)}`;
+  pickup.className = mapProfit < 0 ? "neg" : "pos";
+  const feMin = seconds > 0 ? profit / (seconds / 60) : 0;
+  const rate = $("gRate");
+  rate.textContent = money(feMin);
+  rate.className = feMin < 0 ? "neg" : "pos";
+  const gProfit = $("gProfit");
+  gProfit.textContent = money(profit);
+  gProfit.className = profit < 0 ? "neg" : "pos";
+  const drops = (live?.mapItems || []).slice().sort((a, b) => b.totalValue - a.totalValue).slice(0, 8);
+  $("gDrops").innerHTML = drops.length ? drops.map(d => ghostRow(d, afterTax)).join("") : '<div class="empty">No loot picked up this map</div>';
+  const costs = live?.mapCostItems || [];
+  $("gCosts").innerHTML = costs.length ? costs.map(d => ghostRow(d, false)).join("") : '<div class="empty">No cost items</div>';
 }
 function syncInteractive() {
   bridge?.setOverlayInteractive(true);
+}
+function syncGhostHeight() {
+  if (!ghost || !bridge?.setOverlayHeight) return;
+  const mainEl = $("main");
+  let h = 0, count = 0;
+  for (const child of mainEl.children) {
+    if (getComputedStyle(child).display === "none") continue;
+    h += child.offsetHeight;
+    count++;
+  }
+  h += 12 * Math.max(0, count - 1) + 24 + 34;
+  bridge?.setOverlayHeight({ height: Math.max(120, Math.ceil(h)) });
+}
+function closeDD() {
+  $("dd").classList.remove("open");
+  $("chev").classList.remove("open");
+  syncGhostHeight();
+}
+function showTab(tab) {
+  ghostTab = tab;
+  $("tabLoots").classList.toggle("on", tab === "loots");
+  $("tabCost").classList.toggle("on", tab === "cost");
+  $("panelLoots").style.display = tab === "loots" ? "flex" : "none";
+  $("panelCost").style.display = tab === "cost" ? "flex" : "none";
+}
+function setGhost(v) {
+  ghost = v;
+  try { localStorage.setItem(GHOST_KEY, v ? "1" : "0"); } catch {}
+  $("frame").classList.toggle("ghost", v);
+  $("bOverlay").classList.toggle("on", v);
+  $("bOverlay").title = v ? "Overlay off · back to mini window" : "Overlay on · transparent over the game";
+  if (!v) { closeDD(); bridge?.setOverlayHeight({ restore: true }); }
+  else syncGhostHeight();
+}
+function initGhost() {
+  showTab("loots");
+  let saved = null;
+  try { saved = localStorage.getItem(GHOST_KEY); } catch {}
+  setGhost(saved === "1");
 }
 function updateClickButton() {
   $("bPin").innerHTML = CLICK_ICON;
@@ -168,6 +288,7 @@ function updateClickButton() {
   $("bReset").disabled = clickThrough;
   $("bBack").disabled = clickThrough;
   $("bTax").disabled = clickThrough;
+  $("bOverlay").disabled = clickThrough;
   if (clickThrough) closeReset();
 }
 $("bPause").onclick = () => { if (bridge && live) bridge.setPaused(!live.paused); };
@@ -179,6 +300,16 @@ $("bResetCancel").onclick = closeReset;
 $("bResetConfirm").onclick = () => { bridge?.resetSession(); seconds = 0; closeReset(); };
 window.addEventListener("keydown", e => { if (e.key === "Escape") closeReset(); });
 $("bPin").onclick = () => { clickThrough = !clickThrough; updateClickButton(); syncInteractive(); };
+$("bOverlay").onclick = () => setGhost(!ghost);
+$("tabsRow").onclick = e => {
+  const t = e.target.closest(".tab");
+  if (!t) return;
+  const tab = t.id === "tabCost" ? "cost" : "loots";
+  if ($("dd").classList.contains("open") && ghostTab === tab) { closeDD(); return; }
+  showTab(tab);
+  if (!$("dd").classList.contains("open")) { $("dd").classList.add("open"); $("chev").classList.add("open"); }
+  syncGhostHeight();
+};
 $("bBack").onclick = () => bridge?.restoreMain();
 $("bTax").onclick = () => { afterTax = !afterTax; render(); };
 $("strip").addEventListener("mousedown", e => {
@@ -192,6 +323,7 @@ window.addEventListener("mouseup", () => { if (dragging) { dragging = false; bri
 bridge?.getLive().then(d => { live = d; lastSessionStart = d?.sessionStartedAt || null; render(); });
 bridge?.onLive(d => { live = d; render(); });
 bridge?.onLogStatus(s => { $("dot").className = "dot " + (s?.updating ? "on" : "off"); });
+initGhost();
 updateClickButton();
 syncInteractive();
 setInterval(() => { now = Date.now(); if (live && !live.paused) seconds++; render(); }, 1000);

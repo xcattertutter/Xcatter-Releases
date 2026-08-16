@@ -42,5 +42,6 @@ yarn-error.log*
 /work/
 /desktop-dist/
 /release/
+tsconfig.tsbuildinfo
 /TorchTrack Data/
 *.tgz

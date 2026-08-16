@@ -1064,6 +1064,8 @@ function createWindow() {
 
 let overlayWindow = null;
 let overlayDragBase = null;
+let overlayStoredHeight = 560;
+let overlayHeightLocked = false;
 let mainWindow = null;
 
 function createOverlay() {
@@ -1114,6 +1116,23 @@ ipcMain.handle("overlay:drag", (_event, state) => {
   } else if (state?.type === "end") {
     overlayDragBase = null;
   }
+});
+ipcMain.handle("overlay:setHeight", (_event, msg) => {
+  const win = overlayWindow;
+  if (!win || win.isDestroyed()) return;
+  if (msg?.restore) {
+    overlayHeightLocked = false;
+    const [w] = win.getSize();
+    win.setSize(w, overlayStoredHeight, false);
+    return;
+  }
+  if (!overlayHeightLocked) {
+    overlayStoredHeight = win.getBounds().height;
+    overlayHeightLocked = true;
+  }
+  const h = Math.max(200, Math.min(900, Math.round(Number(msg?.height) || overlayStoredHeight)));
+  const [w] = win.getSize();
+  win.setSize(w, h, false);
 });
 
 ipcMain.handle("log:autoLocate", () => { const found = autoLocateLog(); if (found) connectLog(found); return status(); });

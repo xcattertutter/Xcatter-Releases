@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("torchtrack", {
   getUpdateStatus: () => ipcRenderer.invoke("updates:getStatus"),
   setOverlayInteractive: (value) => ipcRenderer.invoke("overlay:interactive", value),
   overlayDrag: (state) => ipcRenderer.invoke("overlay:drag", state),
+  setOverlayHeight: (msg) => ipcRenderer.invoke("overlay:setHeight", msg),
   openMini: () => ipcRenderer.invoke("overlay:openMini"),
   restoreMain: () => ipcRenderer.invoke("overlay:restoreMain"),
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),

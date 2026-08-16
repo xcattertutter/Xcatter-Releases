@@ -1,6 +1,6 @@
 {
   "name": "xcatter-companion",
-  "version": "0.7.28",
+  "version": "0.8.0",
   "description": "Portable, external farming session tracker for Torchlight: Infinite.",
   "author": "Xcatter",
   "private": true,
