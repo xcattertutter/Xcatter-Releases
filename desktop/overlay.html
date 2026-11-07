@@ -182,7 +182,7 @@ function img(src, name) {
 }
 function render() {
   if (!live) return;
-  if (lastSessionStart !== live.sessionStartedAt) { lastSessionStart = live.sessionStartedAt; seconds = 0; }
+  if (lastSessionStart !== live.sessionStartedAt) { lastSessionStart = live.sessionStartedAt; seconds = live.sessionStartedAt ? Math.max(0, Math.floor((now - Date.parse(live.sessionStartedAt)) / 1000)) : 0; }
   const completedAfterTax = live.sessionMaps.reduce((s, m) => s + afterTaxMapProfit(m.totalValue, m.feDropped, m.cost), 0);
   const sessionAfterTax = completedAfterTax + (live.mapActive ? afterTaxMapProfit(live.mapValue, live.mapFeDropped, live.mapCost) : 0);
   const profit = afterTax ? sessionAfterTax : live.sessionProfit;
@@ -276,9 +276,7 @@ function setGhost(v) {
 }
 function initGhost() {
   showTab("loots");
-  let saved = null;
-  try { saved = localStorage.getItem(GHOST_KEY); } catch {}
-  setGhost(saved === "1");
+  setGhost(false);
 }
 function updateClickButton() {
   $("bPin").innerHTML = CLICK_ICON;
@@ -320,9 +318,10 @@ window.addEventListener("mousemove", e => {
   if (dragging) bridge?.overlayDrag({ type: "move" });
 });
 window.addEventListener("mouseup", () => { if (dragging) { dragging = false; bridge?.overlayDrag({ type: "end" }); } });
-bridge?.getLive().then(d => { live = d; lastSessionStart = d?.sessionStartedAt || null; render(); });
+bridge?.getLive().then(d => { live = d; lastSessionStart = null; render(); });
 bridge?.onLive(d => { live = d; render(); });
 bridge?.onLogStatus(s => { $("dot").className = "dot " + (s?.updating ? "on" : "off"); });
+bridge?.onOverlayReset(() => { clickThrough = false; updateClickButton(); setGhost(false); syncInteractive(); });
 initGhost();
 updateClickButton();
 syncInteractive();

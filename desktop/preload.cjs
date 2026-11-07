@@ -21,6 +21,11 @@ contextBridge.exposeInMainWorld("torchtrack", {
   setOverlayHeight: (msg) => ipcRenderer.invoke("overlay:setHeight", msg),
   openMini: () => ipcRenderer.invoke("overlay:openMini"),
   restoreMain: () => ipcRenderer.invoke("overlay:restoreMain"),
+  onOverlayReset: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("overlay:reset", listener);
+    return () => ipcRenderer.removeListener("overlay:reset", listener);
+  },
   checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   downloadUpdate: () => ipcRenderer.invoke("updates:download"),
   installUpdate: () => ipcRenderer.invoke("updates:install"),

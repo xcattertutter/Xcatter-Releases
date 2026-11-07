@@ -36,7 +36,7 @@ async function upload(request, env) {
 }
 
 async function prices(request, env) {
-  const season = new URL(request.url).searchParams.get("season") || "ss13-afterlight";
+  const season = new URL(request.url).searchParams.get("season") || "ss14-tartarus";
   if (!seasonOk(season)) return json({ error: "Invalid season" }, 400);
   const result = await env.DB.prepare("SELECT item_id,item_name,price_fe,observed_at FROM price_samples WHERE season=? ORDER BY item_id,price_fe").bind(season).all();
   const groups = new Map();

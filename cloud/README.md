@@ -1,6 +1,6 @@
 # TorchTrack Community Prices
 
-Free Cloudflare Worker + D1 service for anonymous SS13 Afterlight price samples.
+Free Cloudflare Worker + D1 service for anonymous SS14 Tartarus price samples.
 
 Only item ID, item name, FE price, observation time, season, and a hashed random contributor ID are stored. Account names, character names, game logs, and inventory contents are never uploaded.
 
@@ -14,4 +14,4 @@ Only item ID, item name, FE price, observation time, season, and a hashed random
 6. Run `npx wrangler secret put INGEST_KEY` and choose a private sharing key for your friends.
 7. Run `npm run deploy`.
 
-The service exposes `GET /health`, authenticated `POST /v1/samples`, and public read-only `GET /v1/prices?season=ss13-afterlight`.
+The service exposes `GET /health`, authenticated `POST /v1/samples`, and public read-only `GET /v1/prices?season=ss14-tartarus`.

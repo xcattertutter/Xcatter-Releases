@@ -24,6 +24,28 @@ let updateConfig = { repository: "" };
 try { updateConfig = { ...updateConfig, ...JSON.parse(fs.readFileSync(path.join(here, "update-config.json"), "utf8")) }; } catch {}
 const UPDATE_REPOSITORY = String(updateConfig.repository || "").trim().replace(/^\/+|\/+$/g, "");
 const UPDATE_API_URL = UPDATE_REPOSITORY ? `https://api.github.com/repos/${UPDATE_REPOSITORY}/releases/latest` : "";
+// Update the list below when Torchlight starts a new season. The live log's
+// +SeasonId line overrides this at runtime, so unknown seasons still display.
+const SEASONS = {
+  1: { label: "Permanent Server", name: "Permanent", key: "permanent" },
+  1301: { label: "SS11 Vorax", name: "Vorax", key: "ss11-vorax" },
+  1401: { label: "SS12 Lunaria", name: "Lunaria", key: "ss12-lunaria" },
+  1501: { label: "SS13 Afterlight", name: "Afterlight", key: "ss13-afterlight" },
+  1601: { label: "SS14 Tartarus", name: "Tartarus", key: "ss14-tartarus" },
+};
+const LATEST_SEASON_ID = 1601;
+const currentSeason = { id: LATEST_SEASON_ID, ...SEASONS[LATEST_SEASON_ID] };
+function seasonInfo(id) {
+  return { id, ...(SEASONS[id] || { label: `Season ${id}`, name: `Season ${id}`, key: `season-${id}` }) };
+}
+function applySeason(id) {
+  const next = seasonInfo(Number(id));
+  if (!Number.isInteger(next.id) || next.id <= 0) return;
+  let changed = false;
+  if (next.id !== currentSeason.id) { Object.assign(currentSeason, next); live.season = { ...next }; changed = true; }
+  if (cloudConfig.season !== next.key) { cloudConfig.season = next.key; saveCloudConfig(); }
+  if (changed) broadcastLive();
+}
 let logPath = null;
 let lastSize = 0;
 let watcher = null;
@@ -34,7 +56,7 @@ let pendingLevelType = null;
 let pendingLevelUid = null;
 const slots = new Map();
 const sessionStartedAt = new Date().toISOString();
-const live = { feGained: 0, pickupCount: 0, estimatedValue: 0, sessionStartedAt, sessionProfit: 0, sessionMaps: [], zone: "Waiting for zone…", currentMap: "Waiting for a map…", mapTier: null, levelId: null, mapStartedAt: null, mapDurationSeconds: 0, mapActive: false, mapValue: 0, mapFeDropped: 0, mapItems: [], mapCost: 0, mapCostItems: [], mapHistory: [], paused: false, initialized: false, recent: [], valuable: [], excludedItems: [], items: [], priceCount: 0, mapPausedMs: 0, pauseStartedAt: null };
+const live = { season: { ...currentSeason }, feGained: 0, pickupCount: 0, estimatedValue: 0, sessionStartedAt, sessionProfit: 0, sessionMaps: [], zone: "Waiting for zone…", currentMap: "Waiting for a map…", mapTier: null, levelId: null, mapStartedAt: null, mapDurationSeconds: 0, mapActive: false, mapValue: 0, mapFeDropped: 0, mapItems: [], mapCost: 0, mapCostItems: [], mapHistory: [], paused: false, initialized: false, recent: [], valuable: [], excludedItems: [], items: [], priceCount: 0, mapPausedMs: 0, pauseStartedAt: null };
 const pickupTotals = new Map();
 const mapLoot = new Map();
 const mapCosts = new Map();
@@ -56,17 +78,29 @@ const priceSync = { syncing: false, available: false, lastSuccessAt: null, lastA
 const cloudStatus = { syncing: false, connected: false, lastSuccessAt: null, uploaded: 0, downloaded: 0, message: "Cloud not configured" };
 const ninjaSync = { syncing: false, lastSuccessAt: null, imported: 0, removed: 0, message: "TITrack Economy not fetched" };
 const updateStatus = { status: UPDATE_REPOSITORY ? "idle" : "unconfigured", currentVersion: app.getVersion(), latestVersion: null, message: UPDATE_REPOSITORY ? "Updates are checked automatically" : "GitHub updates are not configured", progress: 0, releaseUrl: null, notes: null, filePath: null };
-let cloudConfig = { endpoint: "", sharingKey: "", season: "ss13-afterlight" };
+let cloudConfig = { endpoint: "", sharingKey: "", season: currentSeason.key };
 const itemCatalog = new Map();
 let zoneCatalog = { names: {}, ambiguous: {}, levelIds: {} };
 try {
-  const seed = JSON.parse(fs.readFileSync(path.join(here, "items-afterlight.json"), "utf8"));
+  const seed = JSON.parse(fs.readFileSync(path.join(here, "items-tartarus.json"), "utf8"));
   for (const item of seed.items || []) itemCatalog.set(Number(item.id), { name: item.name_en || null, icon: item.img || null, type: item.type_en || item.type_cn || null });
 } catch {}
-try { zoneCatalog = JSON.parse(fs.readFileSync(path.join(here, "zones-afterlight.json"), "utf8")); } catch {}
+try { zoneCatalog = JSON.parse(fs.readFileSync(path.join(here, "zones-tartarus.json"), "utf8")); } catch {}
 try { live.mapHistory = JSON.parse(fs.readFileSync(historyFile, "utf8")).filter((map) => map.schemaVersion === 2).slice(0, 10); } catch {}
-try { prices = JSON.parse(fs.readFileSync(pricesFile, "utf8")); } catch {}
+try {
+  prices = JSON.parse(fs.readFileSync(pricesFile, "utf8"));
+  // Torchlight recycles some ConfigBaseIds every season. When a cached price's
+  // item name no longer matches the current catalog, the id belongs to a
+  // different item now, so the stale price must not be reused.
+  let recycled = 0;
+  for (const [id, price] of Object.entries(prices)) {
+    const catalogName = itemCatalog.get(Number(id))?.name;
+    if (catalogName && price?.name && price.name !== catalogName) { delete prices[id]; recycled++; }
+  }
+  if (recycled) { savePrices(); console.info(`Dropped ${recycled} prices for recycled item ids`); }
+} catch {}
 try { cloudConfig = { ...cloudConfig, ...JSON.parse(fs.readFileSync(cloudFile, "utf8")) }; } catch {}
+if (cloudConfig.season !== currentSeason.key) { cloudConfig.season = currentSeason.key; saveCloudConfig(); }
 sanitizePrices();
 try { shareId = fs.readFileSync(shareIdFile, "utf8").trim(); } catch {}
 if (!shareId) {
@@ -456,7 +490,7 @@ function isHiddenUnknown(id) {
   return (id >= 5000 && id < 8000) || (id >= 100000 && id < 150000) || (id >= 300000 && id < 10000000);
 }
 const EXCLUDED_TYPES = new Set([
-  "传奇装备","核心器官","核心器官-头部","核心器官-胸甲","核心器官-项链","核心器官-手套","核心器官-腰带","核心器官-鞋子","核心器官-戒指","普通器官","特殊器官-其它","特殊器官-前缀","神骸","装备蓝图",
+  "传奇装备","核心器官","核心器官-头部","核心器官-胸甲","核心器官-项链","核心器官-手套","核心器官-腰带","核心器官-鞋子","核心器官-戒指","普通器官","特殊器官-其它","特殊器官-前缀","装备蓝图",
   "完美皮肤-防御","完美心脏-增益","完美喉舌-祝福","完美眼球-减益","完美胚胎-召唤","完美肝脏-转伤","完美羽翼-持续",
   "主动技能","辅助技能","崇高辅助技能","华贵辅助技能","被动技能","触媒技能",
   "英雄追忆",
@@ -475,7 +509,7 @@ function isExcludedType(id) {
 function tracked(id) { return !isHiddenUnknown(id) && !isExcludedType(id); }
 function isMapCostItem(id) {
   const item = itemCatalog.get(id); const text = `${itemName(id)} ${item?.type || ""}`;
-  return /compass|netherrealm resonance|beacon|probe|astrolabe/i.test(text);
+  return /compass|netherrealm resonance|beacon|probe|astrolabe|罗盘|信标|探针|星盘/i.test(text);
 }
 function currentCostTotals() {
   const totals = new Map();
@@ -609,6 +643,9 @@ function savePrices() {
   fs.mkdirSync(app.getPath("userData"), { recursive: true });
   fs.writeFileSync(pricesFile, JSON.stringify(prices, null, 2));
 }
+function saveCloudConfig() {
+  try { fs.mkdirSync(app.getPath("userData"), { recursive: true }); fs.writeFileSync(cloudFile, JSON.stringify(cloudConfig, null, 2)); } catch {}
+}
 function median(values) {
   const sorted = values.filter((value) => Number.isFinite(value) && value >= 0).sort((a, b) => a - b);
   if (!sorted.length) return 0;
@@ -689,7 +726,7 @@ function recomputePrice(configId) {
 }
 function exportPricePayload() {
   return {
-    meta: { schema: "torchtrack-prices-v1", season: "SS13 Afterlight", exported_at_utc: new Date().toISOString(), contributor_id: shareId, privacy: "No account, character, or gameplay-log data included" },
+    meta: { schema: "torchtrack-prices-v1", season: currentSeason.label, season_key: currentSeason.key, exported_at_utc: new Date().toISOString(), contributor_id: shareId, privacy: "No account, character, or gameplay-log data included" },
     prices: Object.entries(prices).map(([id, price]) => ({ id, name_en: price.name || null, price_fe: Number(price.value || 0), source: price.source || "TorchTrack", updated_at: price.updatedAt || null, samples: price.samples || {} })),
   };
 }
@@ -890,6 +927,8 @@ function updateSlotFromLog(pageId, slotId, configId, quantity, countPickup) {
 }
 function parseLine(line) {
   if (parseExchangeLine(line)) return;
+  const season = line.match(/\+SeasonId\s*\[(\d+)\]/);
+  if (season) { applySeason(Number(season[1])); return; }
   const level = line.match(/LevelMgr@\s+LevelUid,\s*LevelType,\s*LevelId\s*=\s*(\d+)\s+(\d+)\s+(\d+)/);
   if (level) {
     pendingLevelUid = Number(level[1]);
@@ -921,7 +960,7 @@ function parseLine(line) {
     return;
   }
   const removed = line.match(/BagMgr@:RemoveBagItem\s+PageId\s*=\s*(\d+)\s+SlotId\s*=\s*(\d+)/);
-  if (removed) { const key = `${removed[1]}:${removed[2]}`; const old = slots.get(key); if (old && isMapCostItem(old.configId) && /^Hideout\s+-/i.test(live.zone)) return; slots.delete(key); refreshValuation(); broadcastLive(); return; }
+  if (removed) { const key = `${removed[1]}:${removed[2]}`; const old = slots.get(key); slots.delete(key); if (old && isMapCostItem(old.configId)) { const remaining = currentCostTotals().get(old.configId) || 0; if (remaining > 0) hubCostBaseline.set(old.configId, remaining); else hubCostBaseline.delete(old.configId); } refreshValuation(); broadcastLive(); return; }
   const zone = line.match(/SceneLevelMgr@\s+OpenMainWorld\s+END!\s+InMainLevelPath\s*=\s*(.+)/);
   if (zone) {
     const raw = zone[1].trim();
@@ -945,7 +984,7 @@ function parseLine(line) {
 }
 function parseChunk(text) {
   const lines = (lineCarry + text).split(/\r?\n/); lineCarry = lines.pop() || "";
-  for (const line of lines) if (exchangeMessage || line.includes("XchgSearchPrice") || line.includes("ItemChange@") || line.includes("BagMgr@:") || line.includes("LevelMgr@") || line.includes("SceneLevelMgr@")) parseLine(line);
+  for (const line of lines) if (exchangeMessage || line.includes("XchgSearchPrice") || line.includes("ItemChange@") || line.includes("BagMgr@:") || line.includes("LevelMgr@") || line.includes("SceneLevelMgr@") || line.includes("SeasonId")) parseLine(line);
 }
 function readNewLogBytes() {
   try {
@@ -990,6 +1029,8 @@ const buffer = Buffer.allocUnsafe(amount); fs.readSync(fd, buffer, 0, amount, of
     }
     live.initialized = slots.size > 0;
     refreshValuation();
+    const seasonHit = [...text.matchAll(/\+SeasonId\s*\[(\d+)\]/g)].at(-1);
+    if (seasonHit) applySeason(Number(seasonHit[1]));
     const levels = [...text.matchAll(/LevelMgr@\s+LevelUid,\s*LevelType,\s*LevelId\s*=\s*(\d+)\s+(\d+)\s+(\d+)/g)];
     const zones = [...text.matchAll(/SceneLevelMgr@\s+OpenMainWorld\s+END!\s+InMainLevelPath\s*=\s*(.+)/g)];
     if (zones.length) {
@@ -1010,7 +1051,7 @@ const buffer = Buffer.allocUnsafe(amount); fs.readSync(fd, buffer, 0, amount, of
       }
       live.zone = name;
       if (!details.hub) { live.currentMap = details.known ? name : (tier ? `${tier} Map` : "Netherrealm Map"); live.mapTier = tier; live.levelId = resolvedLevelId; live.levelType = resolvedLevelType; }
-      else captureHubCostBaseline();
+      captureHubCostBaseline();
     }
     return live.initialized;
   } catch { return false; }
@@ -1084,7 +1125,6 @@ function createOverlay() {
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(here, "preload.cjs") },
   });
   overlayWindow.setAlwaysOnTop(true, "screen-saver");
-  overlayWindow.setIgnoreMouseEvents(true, { forward: true });
   overlayWindow.loadFile(path.join(here, "overlay.html"));
   const { workArea } = screen.getPrimaryDisplay();
   overlayWindow.setPosition(workArea.x + workArea.width - overlayWindow.getBounds().width - 24, workArea.y + 24);
@@ -1095,8 +1135,10 @@ function createOverlay() {
 ipcMain.handle("overlay:openMini", () => {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide();
   const win = createOverlay();
+  win.setIgnoreMouseEvents(false);
   win.show();
   win.blur();
+  if (!win.webContents.isLoading()) win.webContents.send("overlay:reset");
 });
 ipcMain.handle("overlay:restoreMain", () => {
   if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide();
@@ -1148,7 +1190,7 @@ ipcMain.handle("log:getLive", () => live);
 ipcMain.handle("prices:getStatus", () => priceSync);
 ipcMain.handle("prices:sync", () => syncTITrackPrices());
 ipcMain.handle("prices:export", async () => {
-  const result = await dialog.showSaveDialog({ title: "Share Afterlight prices", defaultPath: `Xcatter-Afterlight-Prices-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "Xcatter price file", extensions: ["json"] }] });
+  const result = await dialog.showSaveDialog({ title: `Share ${currentSeason.name} prices`, defaultPath: `Xcatter-${currentSeason.name}-Prices-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: "Xcatter price file", extensions: ["json"] }] });
   if (result.canceled || !result.filePath) return { canceled: true };
   fs.writeFileSync(result.filePath, JSON.stringify(exportPricePayload(), null, 2));
   return { canceled: false, path: result.filePath, count: Object.keys(prices).length };
@@ -1167,8 +1209,8 @@ ipcMain.handle("cloud:getStatus", () => cloudStatus);
 ipcMain.handle("cloud:save", (_event, next) => {
   const endpoint = String(next?.endpoint || "").trim().replace(/\/$/, "");
   if (endpoint && !/^https:\/\//i.test(endpoint)) return { ok: false, error: "Use an https:// Worker URL" };
-  cloudConfig = { endpoint, sharingKey: String(next?.sharingKey || cloudConfig.sharingKey || ""), season: "ss13-afterlight" };
-  fs.mkdirSync(app.getPath("userData"), { recursive: true }); fs.writeFileSync(cloudFile, JSON.stringify(cloudConfig, null, 2));
+  cloudConfig = { endpoint, sharingKey: String(next?.sharingKey || cloudConfig.sharingKey || ""), season: currentSeason.key };
+  saveCloudConfig();
   if (endpoint && cloudConfig.sharingKey) syncCommunityPrices();
   return { ok: true, endpoint, hasKey: Boolean(cloudConfig.sharingKey) };
 });

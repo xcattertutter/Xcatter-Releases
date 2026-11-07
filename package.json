@@ -1,6 +1,6 @@
 {
   "name": "xcatter-companion",
-  "version": "0.8.0",
+  "version": "0.8.3",
   "description": "Portable, external farming session tracker for Torchlight: Infinite.",
   "author": "Xcatter",
   "private": true,
@@ -13,9 +13,10 @@
     "build": "vinext build",
     "start": "vinext start",
     "desktop:web": "vite build --config vite.desktop.config.ts",
-    "desktop:prepare": "npm run desktop:web && node -e \"const f=require('fs');for(const n of ['electron.mjs','preload.cjs','overlay.html','items-afterlight.json','zones-afterlight.json','update-config.json'])f.copyFileSync('desktop/'+n,'desktop-dist/'+n)\"",
+    "desktop:prepare": "npm run desktop:web && node -e \"const f=require('fs');for(const n of ['electron.mjs','preload.cjs','overlay.html','items-tartarus.json','zones-tartarus.json','update-config.json'])f.copyFileSync('desktop/'+n,'desktop-dist/'+n)\"",
     "desktop:portable": "npm run desktop:prepare && electron-builder --win portable --x64",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/season-data.test.mjs",
+    "test:data": "node --test tests/season-data.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
